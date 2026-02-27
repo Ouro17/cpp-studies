@@ -9,9 +9,9 @@
 
 enum class Player { XPlayer, OPlayer, Tie };
 enum class PlayMode { Machine, Player };
-const char X_PIECE = 'X';
-const char O_PIECE = 'O';
-const char EMPTY_PIECE = ' ';
+constexpr char X_PIECE = 'X';
+constexpr char O_PIECE = 'O';
+constexpr char EMPTY_PIECE = ' ';
 
 static std::string toUpper(std::string value) {
   for (char &character : value) {
@@ -22,43 +22,81 @@ static std::string toUpper(std::string value) {
 }
 
 static PlayMode getPlayMode() {
+  const std::string PLAYER = "P";
+  const std::string MACHINE = "M";
   std::string line;
   auto correctData = false;
   do {
-    std::cout << "Which mode do you want to play (P)layer or (M)achine? (P/M)"
-              << std::endl;
+    std::cout << "Which mode do you want to play (P)layer or (M)achine? ("
+              << PLAYER << "/" << MACHINE << ")" << std::endl;
     if (!std::getline(std::cin, line)) {
       std::cout << "Input interrupted." << std::endl;
       std::exit(EXIT_SUCCESS);
     }
     line = toUpper(line);
-    correctData = line == "P" || line == "M";
+    correctData = line == PLAYER || line == MACHINE;
   } while (!correctData);
 
-  return line == "P" ? PlayMode::Player : PlayMode::Machine;
+  return line == PLAYER ? PlayMode::Player : PlayMode::Machine;
+}
+
+static unsigned int getBoardSize() {
+  constexpr unsigned int MIN_BOARD_SIZE = 2;
+
+  while (true) {
+    std::cout << "What will be the board size? (Number greater than 1)"
+              << std::endl;
+
+    std::string line;
+    if (!std::getline(std::cin, line)) {
+      std::cout << "Input interrupted." << std::endl;
+      std::exit(EXIT_SUCCESS);
+    }
+
+    std::istringstream stream(line);
+    int temp;
+    char extra;
+
+    // Read exactly one integer and discard the rest
+    if (!(stream >> temp) || (stream >> extra)) {
+      std::cout << "Invalid input." << std::endl;
+      continue;
+    }
+
+    if (temp < static_cast<int>(MIN_BOARD_SIZE)) {
+      std::cout << "The number needs to be greater than 1." << std::endl;
+      continue;
+    }
+
+    return static_cast<unsigned int>(temp);
+  }
 }
 
 static bool askContinue() {
+  const std::string YES = "Y";
+  const std::string NO = "N";
   std::string line;
   auto correctData = false;
   do {
-    std::cout << "Do you want to play again? (Y/N)" << std::endl;
+    std::cout << "Do you want to play again? (" << YES << "/" << NO << ")"
+              << std::endl;
     if (!std::getline(std::cin, line)) {
       std::cout << "Input interrupted." << std::endl;
       std::exit(EXIT_SUCCESS);
     }
 
     line = toUpper(line);
-    correctData = line == "Y" || line == "N";
+    correctData = line == YES || line == NO;
   } while (!correctData);
 
-  return line == "Y";
+  return line == YES;
 }
 
-void getNumbersSeparatedBySpace(unsigned int &row, unsigned int &column) {
+void getNumbersSeparatedBySpace(unsigned int &row, unsigned int &column,
+                                const unsigned int boardSize) {
   while (true) {
-    std::cout << "Enter row and column (0 to 2), separated by space:"
-              << std::endl;
+    std::cout << "Enter row and column (0 to " << boardSize - 1
+              << "), separated by space:" << std::endl;
 
     std::string line;
     if (!std::getline(std::cin, line)) {
@@ -69,18 +107,18 @@ void getNumbersSeparatedBySpace(unsigned int &row, unsigned int &column) {
     std::istringstream stream(line);
     std::string token;
     unsigned int values[2];
-    unsigned int count = 0;
-    bool valid = true;
+    auto count = 0u;
+    auto valid = true;
 
     while (stream >> token) {
-      if (count >= 2) {
+      if (count >= 2u) {
         valid = false;
         break;
       }
 
       try {
         auto parsed = std::stoul(token);
-        if (parsed > 2) {
+        if (parsed >= boardSize) {
           valid = false;
           break;
         }
@@ -93,7 +131,7 @@ void getNumbersSeparatedBySpace(unsigned int &row, unsigned int &column) {
       ++count;
     }
 
-    if (valid && count == 2) {
+    if (valid && count == 2u) {
       row = values[0];
       column = values[1];
       return;
@@ -106,9 +144,9 @@ void getNumbersSeparatedBySpace(unsigned int &row, unsigned int &column) {
 static void getPosition(const std::vector<char> &data,
                         const unsigned int boardSize, unsigned int &row,
                         unsigned int &column) {
-  bool positionTaken = true;
+  auto positionTaken = true;
   do {
-    getNumbersSeparatedBySpace(row, column);
+    getNumbersSeparatedBySpace(row, column, boardSize);
 
     // If position are already taken, retry
     positionTaken = data[row * boardSize + column] != EMPTY_PIECE;
@@ -120,7 +158,7 @@ static void getPosition(const std::vector<char> &data,
 }
 
 static void drawSeparators(const unsigned int boardSize) {
-  for (unsigned int index = 0; index < boardSize; ++index) {
+  for (auto index = 0u; index < boardSize; ++index) {
     std::cout << "---";
   }
 
@@ -130,21 +168,21 @@ static void drawSeparators(const unsigned int boardSize) {
 static void drawBoard(const std::vector<char> &data,
                       const unsigned int boardSize) {
 
-  unsigned int lastIndex = boardSize - 1;
+  auto lastIndex = boardSize - 1u;
 
   std::cout << "  ";
 
-  for (unsigned int row = 0; row < boardSize; ++row) {
+  for (auto row = 0u; row < boardSize; ++row) {
     std::cout << ' ' << row;
   }
   std::cout << std::endl;
 
   drawSeparators(boardSize);
 
-  for (unsigned int row = 0; row < boardSize; ++row) {
+  for (auto row = 0u; row < boardSize; ++row) {
     std::cout << row << ' ';
 
-    for (unsigned int column = 0; column < boardSize; ++column) {
+    for (auto column = 0u; column < boardSize; ++column) {
       auto value = data[row * boardSize + column];
 
       std::cout << '|' << value;
@@ -158,11 +196,11 @@ static void drawBoard(const std::vector<char> &data,
   }
 }
 
-static Player pieceToPlayer(char piece) {
+constexpr Player pieceToPlayer(char piece) {
   return piece == X_PIECE ? Player::XPlayer : Player::OPlayer;
 }
 
-static char playerToPiece(Player player) {
+constexpr char playerToPiece(Player player) {
   return player == Player::XPlayer ? X_PIECE : O_PIECE;
 }
 
@@ -171,7 +209,7 @@ static bool checkLine(const std::vector<char> &data, unsigned int startIndex,
                       char &winningPiece) {
   const char firstPiece = data[startIndex];
 
-  for (unsigned int offset = 1; offset < boardSize; ++offset) {
+  for (auto offset = 1u; offset < boardSize; ++offset) {
     const auto index = startIndex + offset * step;
     const auto currentPiece = data[index];
 
@@ -197,7 +235,7 @@ static bool checkVictory(const std::vector<char> &data,
   char winningPiece = EMPTY_PIECE;
 
   // Rows
-  for (unsigned int row = 0; row < boardSize; ++row) {
+  for (auto row = 0u; row < boardSize; ++row) {
     const auto startIndex = row * boardSize;
     const auto step = 1u;
 
@@ -208,7 +246,7 @@ static bool checkVictory(const std::vector<char> &data,
   }
 
   // Columns
-  for (unsigned int column = 0; column < boardSize; ++column) {
+  for (auto column = 0u; column < boardSize; ++column) {
     const auto startIndex = column;
     const auto step = boardSize;
 
@@ -243,13 +281,13 @@ static bool checkVictory(const std::vector<char> &data,
   return false;
 }
 
-static Player nextPlayer(const Player current) {
+constexpr Player nextPlayer(const Player current) {
   return current == Player::XPlayer ? Player::OPlayer : Player::XPlayer;
 }
 
-static void indexToPosition(const unsigned int index,
-                            const unsigned int boardSize, unsigned int &row,
-                            unsigned int &column) {
+constexpr void indexToPosition(const unsigned int index,
+                               const unsigned int boardSize, unsigned int &row,
+                               unsigned int &column) {
   row = index / boardSize;
   column = index % boardSize;
 }
@@ -258,7 +296,7 @@ static void machinePlay(const std::vector<char> &data,
                         const unsigned int boardSize, unsigned int &row,
                         unsigned int &column) {
 
-  unsigned int emptyCount = 0;
+  auto emptyCount = 0u;
 
   for (const auto cell : data) {
     if (cell == EMPTY_PIECE) {
@@ -267,7 +305,7 @@ static void machinePlay(const std::vector<char> &data,
   }
 
   // Board is full, should not happen if code is correct
-  if (emptyCount == 0) {
+  if (emptyCount == 0u) {
     return;
   }
 
@@ -276,10 +314,10 @@ static void machinePlay(const std::vector<char> &data,
 
   auto target = dist(engine);
 
-  // Iterate of the board until finding an empty space
+  // Iterate the board until finding an empty space
   // Then counting down until the empty space that we want
   // This is done to avoid allocations
-  for (unsigned int index = 0; index < data.size(); ++index) {
+  for (auto index = 0u; index < data.size(); ++index) {
     if (data[index] == EMPTY_PIECE) {
       if (target == 0) {
         indexToPosition(index, boardSize, row, column);
@@ -299,9 +337,8 @@ Player getRandomStartingPlayer() {
 
 static Player gameLoop(const PlayMode playMode, const unsigned int boardSize) {
   bool finished = false;
-  char piece = X_PIECE;
   Player victoryPlayer = Player::Tie;
-  unsigned int row = 0, column = 0;
+  auto row = 0u, column = 0u;
 
   std::vector<char> data(boardSize * boardSize, EMPTY_PIECE);
 
@@ -340,7 +377,7 @@ static Player gameLoop(const PlayMode playMode, const unsigned int boardSize) {
 
 int main() {
   std::string confirmation;
-  bool continueProgram = false;
+  auto continueProgram = false;
 
   std::cout << "Welcome to Tic Tac Toe" << std::endl;
   std::cout << "This program let you play against Tic Tac Toe against the "
@@ -350,7 +387,9 @@ int main() {
   do {
     const auto playMode = getPlayMode();
 
-    const auto victoryPlayer = gameLoop(playMode, 3);
+    const auto boardSize = getBoardSize();
+
+    const auto victoryPlayer = gameLoop(playMode, boardSize);
 
     if (Player::Tie == victoryPlayer) {
       std::cout << "The match is a tie!" << std::endl;
