@@ -1,18 +1,40 @@
+/*
+Rules:
+- No usage of for-loop, while some reason.
+- Can use struct, while forevers, return on void.
+- Line should end in newline character '\n', except if end of file is not.
+- Returns the first line encounter or NULL in case of error.
+- No use of lseek, realloc or whatever. Only malloc.
+- Can't use global variables BUT CAN use static. Which is basically the same.
+- Bonus: Use only 1 static | Use different file descriptors.
+*/
+
 #include <corecrt_io.h>
+#include <corecrt_search.h>
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <fcntl.h>
 #include <io.h>
-#include <stdio.h>
 #include <stdlib.h>
 
+#define FOREVER 1
 #define BUFFER_SIZE 14
 #define ERROR -1
+#define SUCCESS 0
 #define END_STRING '\0'
 #define CONSOLE_OUTPUT 1
 #define RETURN_CARRIAGE '\n'
 #define MIN_BUFFER_CAPACITY 32
 #define BUFFER_GROW_RATE 2
+// https://learn.microsoft.com/en-us/cpp/c-runtime-library/file-handling?view=msvc-170
+#define FILE_DESCRIPTORS_SIZE 512
+
+typedef struct readState {
+  char buffer[BUFFER_SIZE];
+  int bufferSize;
+  int bufferIndex;
+  int endOfFile;
+} ReadState;
 
 unsigned int stringLength(const char *str) {
   unsigned int length = 0;
@@ -42,115 +64,165 @@ char *reallocateBuffer(char *oldBuffer, const unsigned int oldCapacity,
                        const unsigned int newCapacity) {
   char *newBuffer = malloc(newCapacity);
 
-  if (newBuffer == 0) {
-    free(oldBuffer);
-    exit(EXIT_FAILURE);
+  if (newBuffer == NULL) {
+    return NULL;
   }
 
   copyBuffer(oldBuffer, newBuffer, oldCapacity);
 
-  free(oldBuffer);
   return newBuffer;
 }
 
 void ensureCapacity(char **bufferPtr, unsigned int *capacityPtr,
                     const unsigned int requiredSize) {
 
-  const unsigned int capacity = *capacityPtr;
-  if (capacity >= requiredSize) {
+  const unsigned int oldCapacity = *capacityPtr;
+  if (oldCapacity >= requiredSize) {
     // Nothing to do
     return;
   }
 
-  unsigned int newCapacity =
-      (capacity == 0) ? MIN_BUFFER_CAPACITY : (capacity * BUFFER_GROW_RATE);
+  unsigned int newCapacity = (oldCapacity == 0)
+                                 ? MIN_BUFFER_CAPACITY
+                                 : (oldCapacity * BUFFER_GROW_RATE);
 
   while (newCapacity < requiredSize) {
     newCapacity *= BUFFER_GROW_RATE;
   }
 
-  *bufferPtr = reallocateBuffer(*bufferPtr, capacity, newCapacity);
-  *capacityPtr = newCapacity;
+  char *newBuffer = reallocateBuffer(*bufferPtr, oldCapacity, newCapacity);
+
+  if (newBuffer != NULL) {
+    free(*bufferPtr);
+    *bufferPtr = newBuffer;
+    *capacityPtr = newCapacity;
+  }
 }
 
-void appendChar(char **bufferPtr, unsigned int *lengthPtr,
-                unsigned int *capacityPtr, const char value) {
+int appendChar(char **bufferPtr, unsigned int *lengthPtr,
+               unsigned int *capacityPtr, const char value) {
   ensureCapacity(bufferPtr, capacityPtr, *lengthPtr + 1);
+
+  if (*bufferPtr == NULL) {
+    return ERROR;
+  }
 
   char *data = *bufferPtr;
   const unsigned int index = *lengthPtr;
 
   data[index] = value;
   *lengthPtr = index + 1;
+
+  return SUCCESS;
 }
 
-void printLine(char **bufferPtr, unsigned int *lengthPtr,
-               unsigned int *capacityPtr, const int outputHandler) {
+int appendOrFail(char **buffer, unsigned int *length, unsigned int *capacity,
+                 char value) {
+  if (appendChar(buffer, length, capacity, value) == ERROR) {
+    free(*buffer);
+    *buffer = NULL;
+    return ERROR;
+  }
 
-  // Finish the string
-  appendChar(bufferPtr, lengthPtr, capacityPtr, END_STRING);
-
-  _write(outputHandler, *bufferPtr, *lengthPtr);
-
-  // Reset the line
-  *lengthPtr = 0;
+  return SUCCESS;
 }
 
-void printFromFileDescriptor(const int fileDescriptor,
-                             const int outputHandler) {
-  char readBuffer[BUFFER_SIZE];
+char *getNextLine(int fileDescriptor) {
+  if (fileDescriptor < 0 || fileDescriptor >= FILE_DESCRIPTORS_SIZE) {
+    return NULL;
+  }
 
-  char *lineBuffer = 0;
-  unsigned int lineLength = 0;
-  unsigned int lineCapacity = 0;
+  static ReadState STATIC_READ_STATE[FILE_DESCRIPTORS_SIZE];
 
-  int bytesRead = 0;
+  ReadState *currentState;
+  char *newLine = NULL;
+  unsigned int length = 0;
+  unsigned int capacity = 0;
+  char currentCharacter = 0;
 
-  while ((bytesRead = _read(fileDescriptor, readBuffer, BUFFER_SIZE)) > 0) {
-    unsigned int index = 0;
+  currentState = &STATIC_READ_STATE[fileDescriptor];
 
-    while (index < bytesRead) {
+  while (FOREVER) {
+    if (currentState->bufferIndex >= currentState->bufferSize) {
+      currentState->bufferSize =
+          _read(fileDescriptor, currentState->buffer, BUFFER_SIZE);
+      currentState->bufferIndex = 0;
 
-      appendChar(&lineBuffer, &lineLength, &lineCapacity, readBuffer[index]);
+      if (currentState->bufferSize <= 0) {
+        break; // Stop reading, there are no more bytes on this file descriptor
+      }
+    }
 
-      if (isEndOfLine(readBuffer[index])) {
-        printLine(&lineBuffer, &lineLength, &lineCapacity, outputHandler);
+    currentCharacter = currentState->buffer[currentState->bufferIndex];
+
+    if (appendChar(&newLine, &length, &capacity, currentCharacter) == ERROR) {
+      free(newLine);
+      return NULL;
+    }
+
+    if (currentCharacter == RETURN_CARRIAGE) {
+      currentState->bufferIndex++;
+
+      if (appendChar(&newLine, &length, &capacity, END_STRING) == ERROR) {
+        free(newLine);
+        return NULL;
       }
 
-      index++;
+      return newLine;
     }
+
+    currentState->bufferIndex++;
   }
 
-  // If the read loop is finished and there is some line still not printed,
-  // print it
-  if (lineLength > 0) {
-    printLine(&lineBuffer, &lineLength, &lineCapacity, outputHandler);
+  // Hit here because there are no more bytes to read
+  if (length > 0) {
+
+    if (appendChar(&newLine, &length, &capacity, END_STRING) == ERROR) {
+      free(newLine);
+      return NULL;
+    }
+
+    return newLine;
   }
 
-  free(lineBuffer);
-
-  if (bytesRead == ERROR) {
-    perror("read error");
-  }
+  // Error, free memory and exit
+  free(newLine);
+  return NULL;
 }
 
-int main(int argc, char const *argv[]) {
-  if (argc < 2) {
-    print(CONSOLE_OUTPUT, "Not enough arguments\n");
-    return 1;
+int main(int argumentCount, char const *argumentValues[]) {
+
+  int outputHandler = CONSOLE_OUTPUT;
+
+  if (argumentCount < 2) {
+    print(outputHandler, "Not enough arguments\n");
+    return EXIT_FAILURE;
   }
 
-  const int outputHandler = 1;
-  int fileDescriptor;
-  const char *text = argv[1];
+  int index = 1;
 
-  if ((fileDescriptor = _open(text, O_RDONLY | O_BINARY)) == ERROR) {
-    print(CONSOLE_OUTPUT, "File Opening Failed\n");
-    return EXIT_FAILURE;
-  } else {
-    printFromFileDescriptor(fileDescriptor, outputHandler);
+  while (index < argumentCount) {
+    int fileDescriptor = _open(argumentValues[index], O_RDONLY | O_BINARY);
+    if (fileDescriptor == ERROR) {
+      print(outputHandler, "\nFile Opening Failed: ");
+      print(outputHandler, argumentValues[index]);
+      print(outputHandler, "\n");
+      index++;
+      continue;
+    }
+
+    print(outputHandler, "\nFile: ");
+    print(outputHandler, argumentValues[index]);
+    print(outputHandler, "\n");
+
+    char *nextLine;
+    while ((nextLine = getNextLine(fileDescriptor)) != NULL) {
+      print(outputHandler, nextLine);
+      free(nextLine);
+    }
 
     _close(fileDescriptor);
+    index++;
   }
 
   return EXIT_SUCCESS;
