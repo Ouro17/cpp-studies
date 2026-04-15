@@ -37,6 +37,12 @@
 *.out
 *.app
 
+# Debug/Release builds
+*_debug
+*_release
+build/
+out/
+
 # debug information files
 *.dwo
 
