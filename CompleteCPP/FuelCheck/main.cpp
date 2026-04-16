@@ -51,5 +51,5 @@ int main() {
     continueProgram = checkContinue("Do you want to try again? (Y/N):");
   } while (continueProgram);
 
-  return 0;
+  return EXIT_SUCCESS;
 }

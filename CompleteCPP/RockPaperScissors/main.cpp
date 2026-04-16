@@ -134,5 +134,5 @@ int main() {
     continueProgram = confirmation == "Y";
   } while (continueProgram);
 
-  return 0;
+  return EXIT_SUCCESS;
 }

@@ -119,5 +119,5 @@ int main() {
     continueProgram = getContinue();
   } while (continueProgram);
 
-  return 0;
+  return EXIT_SUCCESS;
 }

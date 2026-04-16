@@ -119,5 +119,5 @@ int main()
     std::cout << "The total cost of your subscription is: "
         << totalCost << std::endl;
 
-    return 0;
+    return EXIT_SUCCESS;
 }

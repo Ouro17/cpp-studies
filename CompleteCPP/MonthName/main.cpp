@@ -91,5 +91,5 @@ int main() {
         checkContinue("Do you want to spell months again? (Y/N):");
   } while (continueProgram);
 
-  return 0;
+  return EXIT_SUCCESS;
 }

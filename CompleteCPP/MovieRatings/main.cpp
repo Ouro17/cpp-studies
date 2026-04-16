@@ -65,5 +65,5 @@ int main() {
               << "/10" << std::endl;
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
