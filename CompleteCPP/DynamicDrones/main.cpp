@@ -99,7 +99,6 @@ static void showDrones(const Drone *const *drones, const int capacity) {
 }
 
 static void deleteDrones(Drone **drones, const int capacity) {
-
   for (auto index = 0u; index < capacity; index++) {
     delete drones[index];
     drones[index] = nullptr;

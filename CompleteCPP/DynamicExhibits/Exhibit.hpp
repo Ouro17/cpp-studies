@@ -5,7 +5,7 @@
 
 class Exhibit {
 public:
-  Exhibit(std::string name, int roomNumber, double displaySize);
+  Exhibit(const std::string name, const int roomNumber, const double displaySize);
 
   std::string getName() const;
   int getRoomNumber() const;

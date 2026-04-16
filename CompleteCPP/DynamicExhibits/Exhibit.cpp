@@ -1,6 +1,6 @@
 #include "Exhibit.hpp"
 
-Exhibit::Exhibit(std::string name, int roomNumber, double displaySize) {
+Exhibit::Exhibit(const std::string name, const int roomNumber, const double displaySize) {
     this->name = name;
     this->roomNumber = roomNumber;
     this->displaySize = displaySize;
