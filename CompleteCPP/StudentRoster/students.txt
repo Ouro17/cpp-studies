@@ -1,0 +1,9 @@
+Alice Johnson 3.8
+Bob Smith 2.9
+Charlie Baker 3.5
+Dana lee 4.0
+Evan Gran 1.7
+Faith Liu 3.2
+George Hall 3.9
+Invalid Student -1.0
+Another Invalid 4.1
